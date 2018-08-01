@@ -57,7 +57,8 @@ bool has_usb(void) {
 void split_keyboard_setup(void) {
    setup_handedness();
 
-   if (has_usb()) {
+   if (isLeftHand) {
+   /* if (has_usb()) { */
       keyboard_master_setup();
    } else {
       keyboard_slave_setup();
@@ -65,7 +66,20 @@ void split_keyboard_setup(void) {
    sei();
 }
 
+void keyboard_slave_loop(void) {
+   matrix_init();
+
+   while (1) {
+      matrix_slave_scan();
+   }
+}
+
 // this code runs before the usb and keyboard is initialized
 void matrix_setup(void) {
     split_keyboard_setup();
+
+    if (!isLeftHand) {
+    /* if (!has_usb()) { */
+        keyboard_slave_loop();
+    }
 }
