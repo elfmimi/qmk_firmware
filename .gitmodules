@@ -3,8 +3,8 @@
 	url = https://github.com/qmk/ChibiOS
 [submodule "lib/chibios-contrib"]
 	path = lib/chibios-contrib
-	url = https://github.com/qmk/ChibiOS-Contrib
-	branch = k-type-fix
+	url = https://github.com/elfmimi/ChibiOS-Contrib
+	branch = nuvoton_nuc123
 [submodule "lib/ugfx"]
 	path = lib/ugfx
 	url = https://github.com/qmk/uGFX
