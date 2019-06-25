@@ -1,6 +1,7 @@
 #include "print.h"
 #include "NUC123.h"
 #include "hal.h"
+#if 0
 #include "fmc-min.h"
 
 #define WK_BOARD_DB_FMC_BASE            (0xC000)
@@ -11,9 +12,11 @@
 #define CONFIG0_CBS_IAP_DISABLE 0x40
 #define CONFIG0_CBS_Msk 0xC0
 #define CONFIG0_DFEN_Msk 0x01
+#endif
 
 #define SYS_RSTSRC_RSTS_ALL_Msk 0xBF
 
+#if 0
 void SetConfigBootSource(int32_t config_boot_source) {
     uint32_t config[2] = {0};
 
@@ -46,10 +49,11 @@ void SetConfigBootSource(int32_t config_boot_source) {
     // SYS_LockReg();
     LOCKREG();
 }
+#endif
 
 void wk_mcu_enter_bl_mode(void)
 {
-    SetConfigBootSource(CONFIG0_CBS_LDROM);
+    // SetConfigBootSource(CONFIG0_CBS_LDROM);
 
     SYS->RSTSRC = SYS_RSTSRC_RSTS_ALL_Msk;
 
@@ -106,6 +110,6 @@ void __early_init(void)
     if (enter_bootloader) {
 	wk_mcu_enter_bl_mode();
     } else {
-	SetConfigBootSource(CONFIG0_CBS_APROM);
+	// SetConfigBootSource(CONFIG0_CBS_APROM);
     }
 }
