@@ -1,6 +1,7 @@
 # QMK Firmware for Z70 / Z70 Pro
 
 [![Development Branch](https://img.shields.io/badge/development%20branch-edrug-blue.svg)](../../tree/edrug)
+[![Safemode Branch](https://img.shields.io/badge/safemode%20branch-edrug--safemode-blue.svg)](../../tree/edrug-safemode)
 [![Current Version](https://img.shields.io/github/tag-pre/elfmimi/qmk_firmware.svg)](../../tags)
 [![Discord](https://img.shields.io/discord/410252082034114578.svg)](https://discord.gg/nMVjctM)
 
@@ -9,6 +10,8 @@ This is a keyboard firmware based on [qmk firmware](https://github.com/qmk/qmk_f
 ## Documentation
 
 Main development branch for Z70 / Z70 Pro is [edrug](../../tree/edrug).
+
+For Safe-mode use [edrug-safemode](../../tree/edrug-safemode) branch.
 
 See also [ChibiOS Contrib](https://github.com/elfmimi/ChibiOS-Contrib)
 
@@ -29,6 +32,7 @@ Do as the following:
 * git clone https://github.com/elfmimi/qmk_firmware.git qmk_edrug_z70
 * cd qmk_edrug_z70
 * git checkout edrug
+* : for safemode; git checkout edrug-safemode
 * git submodule update --init lib/chibios lib/chibios-contrib
 * if using Linux, inspect util/linux_intall.sh and execute it if you think it's apropriate
 * make edrug/z70:default
