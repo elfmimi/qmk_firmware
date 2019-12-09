@@ -70,4 +70,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //#define NO_ACTION_MACRO
 //#define NO_ACTION_FUNCTION
 
+#define DRIVER_LED_TOTAL 90
+//#define RGB_MATRIX_MAXIMUM_BRIGHTNESS 128
+#define RGB_MATRIX_KEYPRESSES
+// #define RGB_MATRIX_KEYRELEASES
+
 #endif

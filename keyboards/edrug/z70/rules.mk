@@ -1,7 +1,8 @@
 # project specific files
 SRC =	matrix.c \
 	z70_led.c \
-	bootloader_jump.c
+	bootloader_jump.c \
+	rgb.c
 
 # OPT_DEFS =
 MCU_LDSCRIPT = NUC123LD4
@@ -45,3 +46,4 @@ COMMAND_ENABLE=yes
 # RAW_ENABLE=no
 # STENO_ENABLE=no
 # VIRTSER_ENABLE=no
+RGB_MATRIX_ENABLE=custom
