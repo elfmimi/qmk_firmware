@@ -36,12 +36,23 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #ifdef DIRECT_PINS
 static pin_t direct_pins[MATRIX_ROWS][MATRIX_COLS] = DIRECT_PINS;
 #else
-static pin_t row_pins[MATRIX_ROWS] = MATRIX_ROW_PINS;
-static pin_t col_pins[MATRIX_COLS] = MATRIX_COL_PINS;
+static const pin_t row_pins[] = MATRIX_ROW_PINS;
+static const pin_t col_pins[] = MATRIX_COL_PINS;
+enum { __col_size_check =  1 / (MATRIX_COLS == sizeof(col_pins)/sizeof(col_pins[0])) };
+#    if !defined(DIODE_DIRECTION)
+#        define DIODE_DIRECTION EITHERWAY
+#    endif
+#    if (DIODE_DIRECTION == BOTHWAYS)
+// Number of elements in MATRIX_ROW_PINS x 4 must be equal to MATRIX_ROWS .
+enum { __row_size_check =  1 / (MATRIX_ROWS == 4*sizeof(row_pins)/sizeof(row_pins[0])) };
+#    else
+// Number of elements in MATRIX_ROW_PINS x 2 must be equal to MATRIX_ROWS .
+enum { __row_size_check =  1 / (MATRIX_ROWS == 2*sizeof(row_pins)/sizeof(row_pins[0])) };
+#    endif
 #endif
 
 /* matrix state(1:on, 0:off) */
-extern matrix_row_t raw_matrix[MATRIX_ROWS];  // raw values
+static matrix_row_t raw_matrix[MATRIX_ROWS];  // raw values
 extern matrix_row_t matrix[MATRIX_ROWS];      // debounced values
 
 // row offsets for each hand
@@ -79,28 +90,21 @@ static bool read_cols_on_row(matrix_row_t current_matrix[], uint8_t current_row)
     return (last_row_value != current_matrix[current_row]);
 }
 
-#elif defined(DIODE_DIRECTION)
-#    if (DIODE_DIRECTION == COL2ROW)
+#else
 
+#    if (DIODE_DIRECTION == COL2ROW) || (DIODE_DIRECTION == ROW2COL)
+#    elif (DIODE_DIRECTION == EITHERWAY) || (DIODE_DIRECTION == BOTHWAYS)
+#    else
+#        error DIODE_DIRECTION must be one of COL2ROW, ROW2COL, EITHERWAY or BOTHWAYS!
+#    endif
+
+#    if (DIODE_DIRECTION != ROW2COL)
 static void select_row(uint8_t row) {
     setPinOutput(row_pins[row]);
     writePinLow(row_pins[row]);
 }
 
 static void unselect_row(uint8_t row) { setPinInputHigh(row_pins[row]); }
-
-static void unselect_rows(void) {
-    for (uint8_t x = 0; x < ROWS_PER_HAND; x++) {
-        setPinInputHigh(row_pins[x]);
-    }
-}
-
-static void init_pins(void) {
-    unselect_rows();
-    for (uint8_t x = 0; x < MATRIX_COLS; x++) {
-        setPinInputHigh(col_pins[x]);
-    }
-}
 
 static bool read_cols_on_row(matrix_row_t current_matrix[], uint8_t current_row) {
     // Store last value of row prior to reading
@@ -124,28 +128,15 @@ static bool read_cols_on_row(matrix_row_t current_matrix[], uint8_t current_row)
 
     return (last_row_value != current_matrix[current_row]);
 }
+#    endif
 
-#    elif (DIODE_DIRECTION == ROW2COL)
-
+#    if (DIODE_DIRECTION != COL2ROW)
 static void select_col(uint8_t col) {
     setPinOutput(col_pins[col]);
     writePinLow(col_pins[col]);
 }
 
 static void unselect_col(uint8_t col) { setPinInputHigh(col_pins[col]); }
-
-static void unselect_cols(void) {
-    for (uint8_t x = 0; x < MATRIX_COLS; x++) {
-        setPinInputHigh(col_pins[x]);
-    }
-}
-
-static void init_pins(void) {
-    unselect_cols();
-    for (uint8_t x = 0; x < ROWS_PER_HAND; x++) {
-        setPinInputHigh(row_pins[x]);
-    }
-}
 
 static bool read_rows_on_col(matrix_row_t current_matrix[], uint8_t current_col) {
     bool matrix_changed = false;
@@ -154,15 +145,23 @@ static bool read_rows_on_col(matrix_row_t current_matrix[], uint8_t current_col)
     select_col(current_col);
     wait_us(30);
 
+#if (DIODE_DIRECTION == BOTHWAYS)
+    const uint8_t num_rows = ROWS_PER_HAND/2;
+#else
+    const uint8_t num_rows = ROWS_PER_HAND;
+#endif
+
     // For each row...
-    for (uint8_t row_index = 0; row_index < ROWS_PER_HAND; row_index++) {
+    for (uint8_t row_index = 0; row_index < num_rows; row_index++) {
         // Store last value of row prior to reading
         matrix_row_t last_row_value = current_matrix[row_index];
 
         // Check row pin state
         if (readPin(row_pins[row_index])) {
+#if (DIODE_DIRECTION != EITHERWAY)
             // Pin HI, clear col bit
             current_matrix[row_index] &= ~(MATRIX_ROW_SHIFTER << current_col);
+#endif
         } else {
             // Pin LO, set col bit
             current_matrix[row_index] |= (MATRIX_ROW_SHIFTER << current_col);
@@ -179,13 +178,31 @@ static bool read_rows_on_col(matrix_row_t current_matrix[], uint8_t current_col)
 
     return matrix_changed;
 }
-
-#    else
-#        error DIODE_DIRECTION must be one of COL2ROW or ROW2COL!
 #    endif
+
+static void unselect_rows(void) {
+#if (DIODE_DIRECTION == BOTHWAYS)
+    const uint8_t num_rows = ROWS_PER_HAND/2;
 #else
-#    error DIODE_DIRECTION is not defined!
+    const uint8_t num_rows = ROWS_PER_HAND;
 #endif
+    for (uint8_t x = 0; x < num_rows; x++) {
+        setPinInputHigh(row_pins[x]);
+    }
+}
+
+static void unselect_cols(void) {
+    for (uint8_t x = 0; x < MATRIX_COLS; x++) {
+        setPinInputHigh(col_pins[x]);
+    }
+}
+
+static void init_pins(void) {
+    unselect_rows();
+    unselect_cols();
+}
+
+#endif // end else def DIRECT_PINS
 
 void matrix_init(void) {
     keyboard_split_setup();
@@ -270,6 +287,26 @@ uint8_t matrix_scan(void) {
     // Set col, read rows
     for (uint8_t current_col = 0; current_col < MATRIX_COLS; current_col++) {
         changed |= read_rows_on_col(raw_matrix, current_col);
+    }
+#elif (DIODE_DIRECTION == EITHERWAY)
+    for (uint8_t current_row = 0; current_row < ROWS_PER_HAND; current_row++) {
+        raw_matrix[current_row + ROWS_PER_HAND] = raw_matrix[current_row];
+        read_cols_on_row(raw_matrix, current_row);
+    }
+    for (uint8_t current_col = 0; current_col < MATRIX_COLS; current_col++) {
+        read_rows_on_col(raw_matrix, current_col);
+    }
+    for (uint8_t current_row = 0; current_row < ROWS_PER_HAND; current_row++) {
+        if (raw_matrix[current_row + ROWS_PER_HAND] != raw_matrix[current_row]) {
+            changed = true;
+        }
+    }
+#elif (DIODE_DIRECTION == BOTHWAYS)
+    for (uint8_t current_row = 0; current_row < ROWS_PER_HAND/2; current_row++) {
+        changed |= read_cols_on_row(raw_matrix, current_row);
+    }
+    for (uint8_t current_col = 0; current_col < MATRIX_COLS; current_col++) {
+        changed |= read_rows_on_col(raw_matrix + ROWS_PER_HAND/2, current_col);
     }
 #endif
 

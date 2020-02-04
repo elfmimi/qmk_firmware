@@ -19,6 +19,9 @@
 /* diode directions */
 #define COL2ROW 0
 #define ROW2COL 1
+#define EITHERWAY 2 /* Compensation for diode direction dissonance */
+#define BOTHWAYS 3 /* Duplex-Matrix */
+#define CUSTOM_MATRIX 4 /* Disables built-in matrix scanning code */
 
 // useful for direct pin mapping
 #define NO_PIN (~0)
