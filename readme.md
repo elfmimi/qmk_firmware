@@ -30,10 +30,14 @@ Do as the following:
    https://developer.arm.com/tools-and-software/open-source-software/developer-tools/gnu-toolchain/gnu-rm/  
    known good version is 7-2018-q2-update : gcc-arm-none-eabi-7-2017-q4-major-win32.zip
 * put the path to the compiler bin in the PATH environmental variable
+* install wget and patch command if they do not exist.
+    * Msys2: pacman -S wget patch
+    * Linux (debians): apt-get install wget patch
+    * Mac: brew install wget
 * git clone https://github.com/elfmimi/qmk_firmware.git qmk_edrug_z70
 * cd qmk_edrug_z70
 * git checkout edrug
-* git submodule update --init lib/chibios lib/chibios-contrib
+* git submodule update --init lib/chibios lib/chibios-contrib lib/lufa
 * if using Linux, inspect util/linux_intall.sh and execute it if you think it's apropriate
 * make edrug/z70:default
 * you will get **edrug_z70_default.bin** and **.build/edrug_z70_default.elf**
