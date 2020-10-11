@@ -1,6 +1,14 @@
 # MCU name
 MCU = STM32F303
 
+# in case without RGB_MATRIX *notice the use of lazy evaluation, or deffered expansion.
+OPT_DEFS += $(if $(filter no,$(RGB_MATRIX_ENABLE)),-DIS31FL3741)
+SRC += $(if $(filter no,$(RGB_MATRIX_ENABLE)),is31fl3741.c)
+QUANTUM_LIB_SRC += $(if $(filter no,$(RGB_MATRIX_ENABLE)),i2c_master.c)
+# COMMON_VPATH is defined as a simple variable, which means 'immediate' not 'deffered' .
+# COMMON_VPATH += $(if $(filter no,$(RGB_MATRIX_ENABLE)),$(DRIVER_PATH)/issi)
+VPATH += $(if $(filter no,$(RGB_MATRIX_ENABLE)),$(DRIVER_PATH)/issi)
+
 # Build Options
 #   change yes to no to disable
 #

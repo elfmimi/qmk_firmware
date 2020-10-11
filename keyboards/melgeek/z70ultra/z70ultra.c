@@ -75,6 +75,8 @@ const is31_led g_is31_leds[DRIVER_LED_TOTAL] = {
     {0, CS37_SW4, CS39_SW4, CS38_SW4}, /* RGB22 */
     {0, CS37_SW9, CS39_SW9, CS38_SW9}, /* RGB27 */
 };
+
+#ifdef RGB_MATRIX_ENABLE
 led_config_t g_led_config = {
 	{
 		/* C0     C1      C2      C3      C4      C5      C6      C7      C8      C9       C10      C11     C12     C13      */
@@ -100,6 +102,7 @@ led_config_t g_led_config = {
 		                                                               4,        4,          4,         4,         4,          4,        4,         4,
 	}
 };
+#endif
 
 const is31_led g_is31_indicator_leds[6] = {
     {0, CS5_SW1, CS3_SW1, CS4_SW1}, /* RGB71 */
@@ -154,11 +157,15 @@ void matrix_init_kb(void) {
 }
 
 void suspend_power_down_kb(void) {
+#ifdef RGB_MATRIX_ENABLE
     rgb_matrix_set_suspend_state(true);
+#endif
     suspend_power_down_user();
 }
 
 void suspend_wakeup_init_kb(void) {
+#ifdef RGB_MATRIX_ENABLE
     rgb_matrix_set_suspend_state(false);
+#endif
     suspend_wakeup_init_user();
 }
