@@ -33,6 +33,10 @@ extern "C" {
 #    include "clks.h"
 #    define wait_ms(ms) CLK_delay_ms(ms)
 #    define wait_us(us) CLK_delay_us(us)
+#elif defined PROTOCOL_NUMICRO
+#    include "numicro_protocol.h"
+#    define wait_ms(ms) do { typeof(ms) _ms = ms;  if (_ms != 0) { CLK_SysTickLongDelay(_ms * 1000); } } while (0)
+#    define wait_us(us) do { typeof(us) _us = us; if (_us != 0) { CLK_SysTickLongDelay(_us); } } while (0)
 #else  // Unit tests
 void wait_ms(uint32_t ms);
 #    define wait_us(us) wait_ms(us / 1000)

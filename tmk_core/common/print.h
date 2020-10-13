@@ -29,7 +29,7 @@
 #include <stdbool.h>
 #include "util.h"
 
-#if defined(PROTOCOL_CHIBIOS) || defined(PROTOCOL_ARM_ATSAM)
+#if defined(PROTOCOL_CHIBIOS) || defined(PROTOCOL_ARM_ATSAM) || defined(PROTOCOL_NUMICRO)
 #    define PSTR(x) x
 #endif
 
@@ -70,7 +70,7 @@ extern "C"
     /* function pointer of sendchar to be used by print utility */
     void print_set_sendchar(int8_t (*print_sendchar_func)(uint8_t));
 
-#    elif defined(PROTOCOL_CHIBIOS) /* PROTOCOL_CHIBIOS */
+#    elif defined(PROTOCOL_CHIBIOS) || defined(PROTOCOL_NUMICRO) /* PROTOCOL_CHIBIOS || PROTOCOL_NUMICRO */
 
 #        include "printf.h"  // lib/printf/printf.h
 
@@ -125,7 +125,7 @@ extern "C"
 
 #        endif /* USER_PRINT / NORMAL PRINT */
 
-#    endif /* __AVR__ / PROTOCOL_CHIBIOS / PROTOCOL_ARM_ATSAM */
+#    endif /* __AVR__ / PROTOCOL_CHIBIOS / PROTOCOL_ARM_ATSAM / PROTOCOL_NUMICRO */
 
 // User print disables the normal print messages in the body of QMK/TMK code and
 // is meant as a lightweight alternative to NOPRINT. Use it when you only want to do

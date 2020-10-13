@@ -18,9 +18,11 @@
 #    include <avr/io.h>
 #    include <avr/interrupt.h>
 #    include <avr/pgmspace.h>
-#else
+#elif defined(PROTOCOL_CHIBIOS)
 #    include "ch.h"
 #    include "hal.h"
+#elif defined(PROTOCOL_NUMICRO)
+#    include "stdint.h"
 #endif
 
 #ifndef LUTS_H

@@ -49,6 +49,10 @@
 #    include "hal.h"
 #endif
 
+#ifdef PROTOCOL_NUMICRO
+#    include "numicro_protocol.h"
+#endif
+
 /*
  * USB descriptor structure
  */
@@ -209,7 +213,7 @@ enum usb_endpoints {
 #ifdef CONSOLE_ENABLE
     CONSOLE_IN_EPNUM = NEXT_EPNUM,
 
-#    ifdef PROTOCOL_CHIBIOS
+#    if defined(PROTOCOL_CHIBIOS) || defined(PROTOCOL_NUMICRO)
     // ChibiOS has enough memory and descriptor to actually enable the endpoint
     // It could use the same endpoint numbers, as that's supported by ChibiOS
     // But the QMK code currently assumes that the endpoint numbers are different
@@ -241,6 +245,9 @@ enum usb_endpoints {
 #elif defined(PROTOCOL_CHIBIOS)
 // ChibiOS gives us number of available user endpoints, not control
 #    define MAX_ENDPOINTS USB_MAX_ENDPOINTS
+#elif defined(PROTOCOL_NUMICRO)
+// NUMICRO gives us number of available user endpoints, not control
+#    define MAX_ENDPOINTS USBD_MAX_EP
 #endif
 
 // TODO - ARM_ATSAM

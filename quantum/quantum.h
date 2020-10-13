@@ -23,6 +23,8 @@
 #if defined(PROTOCOL_CHIBIOS)
 #    include "hal.h"
 #    include "chibios_config.h"
+#elif defined(PROTOCOL_NUMICRO)
+#    include "numicro_protocol.h"
 #endif
 
 #include "wait.h"
@@ -218,6 +220,24 @@ typedef ioline_t pin_t;
 #    define readPin(pin) palReadLine(pin)
 
 #    define togglePin(pin) palToggleLine(pin)
+#elif defined(PROTOCOL_NUMICRO)
+typedef uint8_t pin_t;
+
+#    define PIN_REG(pin) GPIO_PIN_DATA((pin) >> 4, (pin) & 0x0F)
+#    define PIN_PORT(pin)  ((GPIO_T *)(((pin >> 4) * 0x40) + GPIO_BASE))
+#    define PIN_MASK(pin)  ((uint32_t)(1 << (pin & 0x0f)))
+#    define setPinInput(pin) GPIO_SetMode(PIN_PORT(pin), PIN_MASK(pin), GPIO_MODE_INPUT)
+#    define setPinInputHigh(pin) do { setPinBidirectional(pin); writePinHigh(pin); } while(0)
+#    define setPinBidirectional(pin) GPIO_SetMode(PIN_PORT(pin), PIN_MASK(pin), GPIO_MODE_QUASI)
+#    define setPinOutput(pin) GPIO_SetMode(PIN_PORT(pin), PIN_MASK(pin), GPIO_MODE_OUTPUT)
+
+#    define writePinHigh(pin) do { PIN_REG(pin) = 1; } while(0)
+#    define writePinLow(pin) do { PIN_REG(pin) = 0; } while(0)
+#    define writePin(pin, level) do { PIN_REG(pin) = ((level) ? 1 : 0)); } while(0)
+
+#    define readPin(pin) PIN_REG(pin)
+
+#    define togglePin(pin) do { PIN_REG(pin) ^= 1; } while(0)
 #endif
 
 #define SEND_STRING(string) send_string_P(PSTR(string))
