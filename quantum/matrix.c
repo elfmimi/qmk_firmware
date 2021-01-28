@@ -1,5 +1,5 @@
 /*
-Copyright 2012-2018 Jun Wako, Jack Humbert, Yiancar
+Copyright 2012-2020 Jun Wako, Jack Humbert, Yiancar, Ein Terakawa
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -21,23 +21,40 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "debounce.h"
 #include "quantum.h"
 
+
 #ifdef DIRECT_PINS
 static const pin_t direct_pins[MATRIX_ROWS][MATRIX_COLS] = DIRECT_PINS;
-#elif (DIODE_DIRECTION == ROW2COL) || (DIODE_DIRECTION == COL2ROW)
+#else
+
+#    if (DIODE_DIRECTION == COL2ROW) || (DIODE_DIRECTION == ROW2COL)
+#    elif (DIODE_DIRECTION == EITHERWAY) || (DIODE_DIRECTION == BOTHWAYS)
+#    else
+#        error DIODE_DIRECTION must be one of COL2ROW, ROW2COL, EITHERWAY or BOTHWAYS!
+#    endif
+
 static const pin_t row_pins[] = MATRIX_ROW_PINS;
 static const pin_t col_pins[] = MATRIX_COL_PINS;
 #define NUM_ROW_PINS (sizeof(row_pins)/sizeof(pin_t))
 #define NUM_COL_PINS (sizeof(col_pins)/sizeof(pin_t))
 
 /* Consistency checking of the size of the matrix and the number of pins */
+// clang-format off
+#    if (DIODE_DIRECTION == BOTHWAYS)
+_Static_assert(NUM_ROW_PINS * 2 == MATRIX_ROWS, \
+    "Number of elements in MATRIX_ROW_PINS * 2 must be equal to MATRIX_ROWS");
+#    else
 _Static_assert(NUM_ROW_PINS == MATRIX_ROWS, \
     "Number of elements in MATRIX_ROW_PINS must be equal to MATRIX_ROWS");
+#    endif
 _Static_assert(NUM_COL_PINS <= MATRIX_COLS, \
     "Number of elements in MATRIX_COL_PINS must be equal to or less than MATRIX_COLS");
-
+// clang-format on
 #endif
 
 /* matrix state(1:on, 0:off) */
+#if (DIODE_DIRECTION == EITHERWAY)
+matrix_row_t last_matrix[MATRIX_ROWS]; // raw values of last scan
+#endif
 extern matrix_row_t raw_matrix[MATRIX_ROWS];  // raw values
 extern matrix_row_t matrix[MATRIX_ROWS];      // debounced values
 
@@ -86,31 +103,13 @@ static bool read_cols_on_row(matrix_row_t current_matrix[], uint8_t current_row)
     return false;
 }
 
-#elif defined(DIODE_DIRECTION)
-#    if (DIODE_DIRECTION == COL2ROW)
-
-static void select_row(uint8_t row) { setPinOutput_writeLow(row_pins[row]); }
+#else
 
 static void unselect_row(uint8_t row) { setPinInputHigh_atomic(row_pins[row]); }
 
-static void unselect_col(uint8_t col) { setPinInputHigh_atomic(col_pins[col]); }
+#    if (DIODE_DIRECTION != ROW2COL)
 
-static void unselect_rows(void) {
-    for (uint8_t x = 0; x < NUM_ROW_PINS; x++) {
-        unselect_row(x);
-    }
-}
-
-static void unselect_cols(void) {
-    for (uint8_t x = 0; x < NUM_COL_PINS; x++) {
-        unselect_col(x);
-    }
-}
-
-static void init_pins(void) {
-    unselect_rows();
-    unselect_cols();
-}
+static void select_row(uint8_t row) { setPinOutput_writeLow(row_pins[row]); }
 
 static bool read_cols_on_row(matrix_row_t current_matrix[], uint8_t current_row) {
     // Start with a clear matrix row
@@ -140,30 +139,13 @@ static bool read_cols_on_row(matrix_row_t current_matrix[], uint8_t current_row)
     return false;
 }
 
-#    elif (DIODE_DIRECTION == ROW2COL)
-
-static void select_col(uint8_t col) { setPinOutput_writeLow(col_pins[col]); }
+#    endif
 
 static void unselect_col(uint8_t col) { setPinInputHigh_atomic(col_pins[col]); }
 
-static void unselect_row(uint8_t row) { setPinInputHigh_atomic(row_pins[row]); }
+#    if (DIODE_DIRECTION != COL2ROW)
 
-static void unselect_cols(void) {
-    for (uint8_t x = 0; x < NUM_COL_PINS; x++) {
-        unselect_col(x);
-    }
-}
-
-static void unselect_rows(void) {
-    for (uint8_t x = 0; x < NUM_ROW_PINS; x++) {
-        unselect_row(x);
-    }
-}
-
-static void init_pins(void) {
-    unselect_cols();
-    unselect_rows();
-}
+static void select_col(uint8_t col) { setPinOutput_writeLow(col_pins[col]); }
 
 static bool read_rows_on_col(matrix_row_t current_matrix[], uint8_t current_col) {
     bool matrix_changed = false;
@@ -183,8 +165,10 @@ static bool read_rows_on_col(matrix_row_t current_matrix[], uint8_t current_col)
             // Pin LO, set col bit
             current_row_value |= (MATRIX_ROW_SHIFTER << current_col);
         } else {
+#        if (DIODE_DIRECTION != EITHERWAY)
             // Pin HI, clear col bit
             current_row_value &= ~(MATRIX_ROW_SHIFTER << current_col);
+#        endif
         }
 
         // Determine if the matrix changed state
@@ -200,11 +184,25 @@ static bool read_rows_on_col(matrix_row_t current_matrix[], uint8_t current_col)
     return matrix_changed;
 }
 
-#    else
-#        error DIODE_DIRECTION must be one of COL2ROW or ROW2COL!
 #    endif
-#else
-#    error DIODE_DIRECTION is not defined!
+
+static void unselect_rows(void) {
+    for (uint8_t x = 0; x < NUM_ROW_PINS; x++) {
+        unselect_row(x);
+    }
+}
+
+static void unselect_cols(void) {
+    for (uint8_t x = 0; x < NUM_COL_PINS; x++) {
+        unselect_col(x);
+    }
+}
+
+static void init_pins(void) {
+    unselect_cols();
+    unselect_rows();
+}
+
 #endif
 
 void matrix_init(void) {
@@ -234,6 +232,26 @@ uint8_t matrix_scan(void) {
     // Set col, read rows
     for (uint8_t current_col = 0; current_col < NUM_COL_PINS; current_col++) {
         changed |= read_rows_on_col(raw_matrix, current_col);
+    }
+#elif (DIODE_DIRECTION == EITHERWAY)
+    // Logically combine the result of COL2ROW and ROW2COL
+    for (uint8_t current_row = 0; current_row < NUM_ROW_PINS; current_row++) {
+        last_matrix[current_row] = raw_matrix[current_row];
+        read_cols_on_row(raw_matrix, current_row);
+    }
+    for (uint8_t current_col = 0; current_col < NUM_COL_PINS; current_col++) {
+        read_rows_on_col(raw_matrix, current_col);
+    }
+    for (uint8_t current_row = 0; current_row < NUM_ROW_PINS; current_row++) {
+        changed |= (last_matrix[current_row] != raw_matrix[current_row]);
+    }
+#elif (DIODE_DIRECTION == BOTHWAYS)
+    // Concatinate the result of COL2ROW and ROW2COL, top to bottom
+    for (uint8_t current_row = 0; current_row < NUM_ROW_PINS; current_row++) {
+        changed |= read_cols_on_row(raw_matrix, current_row);
+    }
+    for (uint8_t current_col = 0; current_col < NUM_COL_PINS; current_col++) {
+	changed |= read_rows_on_col(raw_matrix + NUM_ROW_PINS, current_col);
     }
 #endif
 
