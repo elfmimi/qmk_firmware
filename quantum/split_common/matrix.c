@@ -1,5 +1,6 @@
 /*
 Copyright 2012 Jun Wako <wakojun@gmail.com>
+          2020 Ein Terakawa <applause@elfmimi.jp>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -29,12 +30,21 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define ROWS_PER_HAND (MATRIX_ROWS / 2)
 
 #ifdef DIRECT_PINS
+
 #    ifdef DIRECT_PINS_RIGHT
 static pin_t direct_pins[MATRIX_ROWS][MATRIX_COLS] = DIRECT_PINS;
 #    else
 static const pin_t direct_pins[MATRIX_ROWS][MATRIX_COLS] = DIRECT_PINS;
 #    endif
-#elif (DIODE_DIRECTION == ROW2COL) || (DIODE_DIRECTION == COL2ROW)
+
+#else
+
+#    if (DIODE_DIRECTION == COL2ROW) || (DIODE_DIRECTION == ROW2COL)
+#    elif (DIODE_DIRECTION == EITHERWAY) || (DIODE_DIRECTION == BOTHWAYS)
+#    else
+#        error DIODE_DIRECTION must be one of COL2ROW, ROW2COL, EITHERWAY or BOTHWAYS!
+#    endif
+
 #    ifdef MATRIX_ROW_PINS_RIGHT
 static pin_t row_pins[] = MATRIX_ROW_PINS;
 #    else
@@ -50,14 +60,19 @@ static const pin_t col_pins[] = MATRIX_COL_PINS;
 
 /* Consistency checking of the size of the matrix and the number of pins */
 // clang-format off
+#    if (DIODE_DIRECTION == BOTHWAYS)
+#        define NUM_ROW_PINS (MATRIX_ROWS / 4)
+_Static_assert(NUM_ROW_PINS * 4 == MATRIX_ROWS, "Must be exactly divisible");
+#    else
 #        define NUM_ROW_PINS (MATRIX_ROWS / 2)
 _Static_assert(NUM_ROW_PINS * 2 == MATRIX_ROWS, "Must be exactly divisible");
+#    endif
 _Static_assert(NUM_ROW_PINS == sizeof(row_pins)/sizeof(pin_t), \
     "Number of elements in MATRIX_ROW_PINS * 2 must be equal to MATRIX_ROWS");
-#if !defined(MATRIX_COL_PINS_RIGHT)
+#    if !defined(MATRIX_COL_PINS_RIGHT)
 _Static_assert(MATRIX_COLS == sizeof(col_pins)/sizeof(pin_t), \
     "Number of elements in MATRIX_COL_PINS must be equal to MATRIX_COLS");
-#endif
+#    endif
 // clang-format on
 
 #endif
@@ -117,39 +132,18 @@ static bool read_cols_on_row(matrix_row_t current_matrix[], uint8_t current_row)
     return false;
 }
 
-#elif defined(DIODE_DIRECTION)
-#    if (DIODE_DIRECTION == COL2ROW)
+#else
 
-static void select_row(uint8_t row) { setPinOutput_writeLow(row_pins[row]); }
+#    if (DIODE_DIRECTION == COL2ROW) || (DIODE_DIRECTION == ROW2COL)
+#    elif (DIODE_DIRECTION == EITHERWAY) || (DIODE_DIRECTION == BOTHWAYS)
+#    else
+#        error DIODE_DIRECTION must be one of COL2ROW, ROW2COL, EITHERWAY or BOTHWAYS!
+#    endif
 
 static void unselect_row(uint8_t row) { setPinInputHigh_atomic(row_pins[row]); }
 
-static void unselect_col(uint8_t col) { setPinInputHigh_atomic(col_pins[col]); }
-
-static void unselect_rows(void) {
-    for (uint8_t x = 0; x < ROWS_PER_HAND; x++) {
-        unselect_row(x);
-    }
-}
-
-static void unselect_cols(void) {
-    for (uint8_t x = 0; x < MATRIX_COLS; x++) {
-#ifdef MATRIX_COL_PINS_RIGHT
-        // This will get optimized away at compile time when unnecessary.
-        if (MATRIX_COLS > NUM_COL_PINS || MATRIX_COLS > NUM_COL_PINS_RIGHT) {
-            if (col_pins[x] == NO_PIN) {
-                continue;
-            }
-        }
-#endif
-        unselect_col(x);
-    }
-}
-
-static void init_pins(void) {
-    unselect_rows();
-    unselect_cols();
-}
+#    if (DIODE_DIRECTION != ROW2COL)
+static void select_row(uint8_t row) { setPinOutput_writeLow(row_pins[row]); }
 
 static bool read_cols_on_row(matrix_row_t current_matrix[], uint8_t current_row) {
     // Start with a clear matrix row
@@ -186,39 +180,12 @@ static bool read_cols_on_row(matrix_row_t current_matrix[], uint8_t current_row)
     }
     return false;
 }
-
-#    elif (DIODE_DIRECTION == ROW2COL)
-
-static void select_col(uint8_t col) { setPinOutput_writeLow(col_pins[col]); }
+#    endif
 
 static void unselect_col(uint8_t col) { setPinInputHigh_atomic(col_pins[col]); }
 
-static void unselect_row(uint8_t row) { setPinInputHigh_atomic(row_pins[row]); }
-
-static void unselect_cols(void) {
-    for (uint8_t x = 0; x < MATRIX_COLS; x++) {
-#ifdef MATRIX_COL_PINS_RIGHT
-        // This will get optimized away at compile time when unnecessary.
-        if (MATRIX_COLS > NUM_COL_PINS || MATRIX_COLS > NUM_COL_PINS_RIGHT) {
-            if (col_pins[x] == NO_PIN) {
-                continue;
-            }
-        }
-#endif
-        unselect_col(x);
-    }
-}
-
-static void unselect_rows(void) {
-    for (uint8_t x = 0; x < ROWS_PER_HAND; x++) {
-        unselect_row(x);
-    }
-}
-
-static void init_pins(void) {
-    unselect_cols();
-    unselect_rows();
-}
+#    if (DIODE_DIRECTION != COL2ROW)
+static void select_col(uint8_t col) { setPinOutput_writeLow(col_pins[col]); }
 
 static bool read_rows_on_col(matrix_row_t current_matrix[], uint8_t current_col) {
     bool matrix_changed = false;
@@ -238,8 +205,10 @@ static bool read_rows_on_col(matrix_row_t current_matrix[], uint8_t current_col)
             // Pin LO, set col bit
             current_row_value |= (MATRIX_ROW_SHIFTER << current_col);
         } else {
+#        if (DIODE_DIRECTION != EITHERWAY)
             // Pin HI, clear col bit
             current_row_value &= ~(MATRIX_ROW_SHIFTER << current_col);
+#        endif
         }
 
         // Determine if the matrix changed state
@@ -254,12 +223,33 @@ static bool read_rows_on_col(matrix_row_t current_matrix[], uint8_t current_col)
 
     return matrix_changed;
 }
-
-#    else
-#        error DIODE_DIRECTION must be one of COL2ROW or ROW2COL!
 #    endif
-#else
-#    error DIODE_DIRECTION is not defined!
+
+static void unselect_rows(void) {
+    for (uint8_t x = 0; x < ROWS_PER_HAND; x++) {
+        unselect_row(x);
+    }
+}
+
+static void unselect_cols(void) {
+    for (uint8_t x = 0; x < MATRIX_COLS; x++) {
+#ifdef MATRIX_COL_PINS_RIGHT
+        // This will get optimized away at compile time when unnecessary.
+        if (MATRIX_COLS > NUM_COL_PINS || MATRIX_COLS > NUM_COL_PINS_RIGHT) {
+            if (col_pins[x] == NO_PIN) {
+                continue;
+            }
+        }
+#endif
+        unselect_col(x);
+    }
+}
+
+static void init_pins(void) {
+    unselect_rows();
+    unselect_cols();
+}
+
 #endif
 
 void matrix_init(void) {
@@ -279,7 +269,7 @@ void matrix_init(void) {
         const pin_t row_pins_right[] = MATRIX_ROW_PINS_RIGHT;
 #define NUM_ROW_PINS_RIGHT (sizeof(row_pins_right)/sizeof(pin_t))
         _Static_assert(NUM_ROW_PINS_RIGHT == NUM_ROW_PINS, \
-            "Number of elements in MATRIX_ROW_PINS_RIGHT * 2 must be equal to MATRIX_ROWS");
+            "Number of elements in MATRIX_ROW_PINS_RIGHT must be same as MATRIX_ROW_PINS");
         for (uint8_t i = 0; i < NUM_ROW_PINS; i++) {
             row_pins[i] = row_pins_right[i];
         }
@@ -365,6 +355,42 @@ uint8_t matrix_scan(void) {
         }
 #endif
         changed |= read_rows_on_col(raw_matrix, current_col);
+    }
+#elif (DIODE_DIRECTION == EITHERWAY)
+    for (uint8_t current_row = 0; current_row < ROWS_PER_HAND; current_row++) {
+        raw_matrix[current_row + ROWS_PER_HAND] = raw_matrix[current_row];
+        read_cols_on_row(raw_matrix, current_row);
+    }
+    for (uint8_t current_col = 0; current_col < MATRIX_COLS; current_col++) {
+#ifdef MATRIX_COL_PINS_RIGHT
+        // This will get optimized away at compile time when unnecessary.
+        if (MATRIX_COLS > NUM_COL_PINS || MATRIX_COLS > NUM_COL_PINS_RIGHT) {
+            if (col_pins[current_col] == NO_PIN) {
+                continue;
+            }
+        }
+#endif
+        read_rows_on_col(raw_matrix, current_col);
+    }
+    for (uint8_t current_row = 0; current_row < ROWS_PER_HAND; current_row++) {
+        if (raw_matrix[current_row + ROWS_PER_HAND] != raw_matrix[current_row]) {
+            changed = true;
+        }
+    }
+#elif (DIODE_DIRECTION == BOTHWAYS)
+    for (uint8_t current_row = 0; current_row < ROWS_PER_HAND / 2; current_row++) {
+        changed |= read_cols_on_row(raw_matrix, current_row);
+    }
+    for (uint8_t current_col = 0; current_col < MATRIX_COLS; current_col++) {
+#ifdef MATRIX_COL_PINS_RIGHT
+        // This will get optimized away at compile time when unnecessary.
+        if (MATRIX_COLS > NUM_COL_PINS || MATRIX_COLS > NUM_COL_PINS_RIGHT) {
+            if (col_pins[current_col] == NO_PIN) {
+                continue;
+            }
+        }
+#endif
+        changed |= read_rows_on_col(raw_matrix + ROWS_PER_HAND / 2, current_col);
     }
 #endif
 
