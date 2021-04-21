@@ -76,8 +76,8 @@ endif
 ifeq ($(strip $(CONSOLE_ENABLE)), yes)
     TMK_COMMON_DEFS += -DCONSOLE_ENABLE
 else
-    TMK_COMMON_DEFS += -DNO_PRINT
-    TMK_COMMON_DEFS += -DNO_DEBUG
+#    TMK_COMMON_DEFS += -DNO_PRINT
+#    TMK_COMMON_DEFS += -DNO_DEBUG
 endif
 
 ifeq ($(strip $(NKRO_ENABLE)), yes)

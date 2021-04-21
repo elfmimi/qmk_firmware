@@ -1,0 +1,3 @@
+#include "color.h"
+bool LED_Driver_Init(void);
+void SET_ALL_but_status_PWM(LED_TYPE *buf);
